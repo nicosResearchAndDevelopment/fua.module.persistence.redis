@@ -1,7 +1,7 @@
 const
     assert = require("assert"),
     regex_semantic_id = /^https?:\/\/\S+$|^\w+:\S+$/,
-    regex_cypher_save_string = /^[^`'"]*$/,
+    regex_nonempty_key = /\S/,
     array_primitive_types = Object.freeze(["boolean", "number", "string"]);
 
 /**
@@ -33,13 +33,13 @@ module.exports = function (config) {
     const redis_client = config["client"];
 
     /**
-     * Returns true, if the value does not include any `, ' or ".
+     * Returns true, if the value does include at least one nonspace character.
      * @param {String} value 
      * @returns {Boolean}
      */
-    function is_cypher_save_string(value) {
-        return regex_cypher_save_string.test(value);
-    } // is_cypher_save_string
+    function is_nonempty_key(value) {
+        return regex_nonempty_key.test(value);
+    } // is_nonempty_key
 
     /**
      * This is an IRI or a prefixed IRI.
@@ -100,15 +100,9 @@ module.exports = function (config) {
         assert(is_semantic_id(subject),
             `redis_adapter - operation_exist - invalid {SemanticID} subject <${subject}>`);
 
-        // /** @type {Array<Record>} */
-        // const existRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "RETURN true AS exists",
-        //     { "subject": subject }
-        // );
-
-        // return existRecords.length > 0 ? existRecords[0]["exists"] : false;
-        // TODO
+        /** @type {Number} */
+        const existsRecord = await request_redis("EXISTS", subject);
+        return !!existsRecord;
 
     } // operation_redis_exist
 
@@ -123,18 +117,10 @@ module.exports = function (config) {
         assert(is_semantic_id(subject),
             `redis_adapter - operation_create - invalid {SemanticID} subject <${subject}>`);
 
-        if (await operation_redis_exist(subject))
-            return false;
-
-        // /** @type {Array<Record>} */
-        // const createRecords = await request_neo4j(
-        //     "CREATE (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "RETURN true AS created",
-        //     { "subject": subject }
-        // );
-
-        // return createRecords.length > 0 ? createRecords[0]["created"] : false;
-        // TODO
+        /** @type {Number} */
+        const createRecord = await request_redis("HSETNX", subject, "@id", JSON.stringify(subject));
+        if (createRecord) await request_redis("HSETNX", subject, "@type", JSON.stringify(["rdfs:Resource"]));
+        return !!createRecord;
 
     } // operation_redis_create
 
@@ -149,15 +135,13 @@ module.exports = function (config) {
         assert(is_semantic_id(subject),
             `redis_adapter - operation_read_subject - invalid {SemanticID} subject <${subject}>`);
 
-        // /** @type {Array<Record>} */
-        // const readRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "RETURN subject { .*, `@type`: labels(subject) } AS properties",
-        //     { "subject": subject }
-        // );
+        /** @type {Object<String>|null} */
+        const readRecord = await request_redis("HGETALL", subject);
+        if (readRecord) for (let key in readRecord) {
+            readRecord[key] = JSON.parse(readRecord[key]);
+        } // if-for
 
-        // return readRecords.length > 0 ? readRecords[0]["properties"] : null;
-        // TODO
+        return readRecord;
 
     } // operation_redis_read_subject
 
@@ -172,15 +156,9 @@ module.exports = function (config) {
         assert(is_semantic_id(subject),
             `redis_adapter - operation_read_type - invalid {SemanticID} subject <${subject}>`);
 
-        // /** @type {Array<Record>} */
-        // const readRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "RETURN labels(subject) AS type",
-        //     { "subject": subject }
-        // );
-
-        // return readRecords.length > 0 ? readRecords[0]["type"] : null;
-        // TODO
+        /** @type {String|null} */
+        const readRecord = await request_redis("HGET", subject, "@type");
+        return readRecord ? JSON.parse(readRecord) : null;
 
     } // operation_redis_read_type
 
@@ -203,24 +181,17 @@ module.exports = function (config) {
         /** @type {Array<String>} */
         const keyArr = isArray ? key : [key];
 
-        // assert(keyArr.every(is_cypher_save_string),
-        //     `redis_adapter - operation_read - {String|Array<String>} key <${key}> not cypher save`);
+        assert(keyArr.every(is_nonempty_key),
+            `redis_adapter - operation_read - {String|Array<String>} ${isArray ? "some " : ""}key <${key}> is empty`);
 
-        // /** @type {Array<Record>} */
-        // const readRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "WITH subject UNWIND $keys AS key\n" +
-        //     "RETURN key, CASE key WHEN '@type' THEN labels(subject) ELSE subject[key] END AS value",
-        //     { "subject": subject, "keys": keyArr }
-        // );
+        if (!(await operation_redis_exist(subject)))
+            return null;
 
-        // /** @type {Map<String, PrimitiveValue>} */
-        // const valueMap = new Map(readRecords.map(record => [record["key"], record["value"]]));
-        // /** @type {Array<PrimitiveValue>} */
-        // const valueArr = keyArr.map(key => valueMap.get(key) || null);
+        /** @type {Array<String|null>} */
+        const readRecords = await request_redis("HMGET", subject, ...keyArr);
+        const valueArr = readRecords.map(val => val ? JSON.parse(val) : null);
 
-        // return isArray ? valueArr : valueArr[0];
-        // TODO
+        return isArray ? valueArr : valueArr[0];
 
     } // operation_redis_read
 
@@ -240,20 +211,22 @@ module.exports = function (config) {
             `redis_adapter - operation_update_predicate - invalid {SemanticID} predicate <${predicate}>`);
         assert(is_semantic_id(object),
             `redis_adapter - operation_update_predicate - invalid {SemanticID} object <${object}>`);
-        // assert(is_cypher_save_string(predicate),
-        //     `redis_adapter - operation_update_predicate - {SemanticID} predicate <${predicate}> not cypher save`);
 
-        // /** @type {Array<Record>} */
-        // const updateRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "MATCH (object:`rdfs:Resource` { `@id`: $object })\n" +
-        //     "MERGE (subject)-[:`" + predicate + "`]->(object)\n" +
-        //     "RETURN true AS updated",
-        //     { "subject": subject, "object": object }
-        // );
+        if (!(await operation_redis_exist(subject)))
+            return false;
 
-        // return updateRecords.length > 0 ? updateRecords[0]["updated"] : false;
-        // TODO
+        /** @type {Array<SemanticID>|null} */
+        const prevObjects = await operation_redis_list(subject, predicate);
+
+        const nextObjects = prevObjects
+            ? prevObjects.includes(object)
+                ? null
+                : [...prevObjects, object]
+            : [object];
+
+        if (nextObjects)
+            await request_redis("HSET", subject, predicate, JSON.stringify(nextObjects));
+        return true;
 
     } // operation_redis_update_predicate
 
@@ -281,25 +254,9 @@ module.exports = function (config) {
         const prevTypes = await operation_redis_read_type(subject);
         if (!prevTypes) return false;
 
-        const addTypes = typeArr.filter(type => !prevTypes.includes(type));
-        const removeTypes = prevTypes.filter(type => !typeArr.includes(type));
-        if (addTypes.length + removeTypes.length === 0) return true;
-
-        // /** @type {Array<Record>} */
-        // let updateRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     (addTypes.length === 0 ? "" : "SET " + addTypes.map(
-        //         type => "subject:`" + type + "`"
-        //     ).join(", ") + "\n") +
-        //     (removeTypes.length === 0 ? "" : "REMOVE " + removeTypes.map(
-        //         type => "subject:`" + type + "`"
-        //     ).join(", ") + "\n") +
-        //     "RETURN true AS updated",
-        //     { "subject": subject }
-        // );
-
-        // return updateRecords.length > 0 ? updateRecords[0]["updated"] : false;
-        // TODO
+        if (typeArr.some(val => !prevTypes.includes(val)) || prevTypes.some(val => !typeArr.includes(val)))
+            await request_redis("HSET", subject, "@type", JSON.stringify(typeArr));
+        return true;
 
     } // operation_redis_update_type
 
@@ -318,21 +275,16 @@ module.exports = function (config) {
 
         assert(is_semantic_id(subject),
             `redis_adapter - operation_update - invalid {SemanticID} subject <${subject}>`);
-        // assert(is_cypher_save_string(key),
-        //     `redis_adapter - operation_update - {String|SemanticID} key <${key}> not cypher save`);
+        assert(is_nonempty_key(key),
+            `redis_adapter - operation_update - {String|SemanticID} key <${key}> is empty`);
         assert(is_primitive_value(value),
             `redis_adapter - operation_update - invalid {PrimitiveValue|SemanticID} value <${value}>`);
 
-        // /** @type {Array<Record>} */
-        // const updateRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "SET subject.`" + key + "` = $value\n" +
-        //     "RETURN true AS updated",
-        //     { "subject": subject, "value": value }
-        // );
+        if (!(await operation_redis_exist(subject)))
+            return false;
 
-        // return updateRecords.length > 0 ? updateRecords[0]["updated"] : false;
-        // TODO
+        await request_redis("HSET", subject, key, JSON.stringify(value));
+        return true;
 
     } // operation_redis_update
 
@@ -352,18 +304,18 @@ module.exports = function (config) {
             `redis_adapter - operation_delete_predicate - invalid {SemanticID} predicate <${predicate}>`);
         assert(is_semantic_id(object),
             `redis_adapter - operation_delete_predicate - invalid {SemanticID} object <${object}>`);
-        // assert(is_cypher_save_string(predicate),
-        //     `redis_adapter - operation_delete_predicate - {SemanticID} predicate <${predicate}> not cypher save`);
 
-        // /** @type {Array<Record>} */
-        // const deleteRecords = await request_neo4j(
-        //     "MATCH (:`rdfs:Resource` { `@id`: $subject })-[predicate:`" + predicate + "`]->(:`rdfs:Resource` { `@id`: $object })\n" +
-        //     "DELETE predicate RETURN true AS deleted",
-        //     { "subject": subject, "object": object }
-        // );
+        /** @type {Array<SemanticID>|null} */
+        const prevObjects = await operation_redis_list(subject, predicate);
+        if (!prevObjects) return false;
+        const objIndex = prevObjects.indexOf(object);
+        if (objIndex < 0) return false;
 
-        // return deleteRecords.length > 0 ? deleteRecords[0]["deleted"] : false;
-        // TODO
+        /** @type {Array<SemanticID>} */
+        const nextObjects = prevObjects; nextObjects.splice(objIndex, 1);
+        if (nextObjects.length > 0) await request_redis("HSET", subject, predicate, JSON.stringify(nextObjects));
+        else await request_redis("HDEL", subject, predicate);
+        return true;
 
     } // operation_redis_delete_predicate
 
@@ -382,15 +334,8 @@ module.exports = function (config) {
         assert(is_semantic_id(subject),
             `redis_adapter - operation_delete - invalid {SemanticID} subject <${subject}>`);
 
-        // /** @type {Array<Record>} */
-        // const deleteRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
-        //     "DETACH DELETE subject RETURN true AS deleted",
-        //     { "subject": subject }
-        // );
-
-        // return deleteRecords.length > 0 ? deleteRecords[0]["deleted"] : false;
-        // TODO
+        const deleteRecord = await request_redis("DEL", subject);
+        return !!deleteRecord;
 
     } // operation_redis_delete
 
@@ -407,20 +352,9 @@ module.exports = function (config) {
             `redis_adapter - operation_list - invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
             `redis_adapter - operation_list - invalid {SemanticID} predicate <${predicate}>`);
-        // assert(is_cypher_save_string(predicate),
-        //     `redis_adapter - operation_list - {SemanticID} predicate <${predicate}> not cypher save`);
 
-        // /** @type {Array<Record>} */
-        // const listRecords = await request_neo4j(
-        //     "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
-        //     "MATCH (subject)-[:`" + predicate + "`]->(object:`rdfs:Resource`)\n" +
-        //     "RETURN object.`@id` AS object",
-        //     { "subject": subject }
-        // );
-
-        // return listRecords.length > 0 ? listRecords.map(record => record["object"]) :
-        //     await operation_redis_exist(subject) ? [] : null;
-        // TODO
+        const listRecord = await request_redis("HGET", subject, predicate);
+        return listRecord ? JSON.parse(listRecord) : null;
 
     } // operation_redis_list
 
