@@ -1,0 +1,28 @@
+{
+  "name": "fua.module.persistence.redis",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/module.persistence.redis.js",
+  "dependencies": {
+    "redis": "3.x"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "jest": {
+    "rootDir": "test",
+    "verbose": false,
+    "testRegex": "(\\.|/)test\\.js$"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@git02.int.nsc.ag:10022/Research/fua/lib/module.persistence.redis.git"
+  },
+  "keywords": [
+    "redis",
+    "persistence",
+    "adapter"
+  ],
+  "author": "spetrac@nicos-ag.com",
+  "license": ""
+}
