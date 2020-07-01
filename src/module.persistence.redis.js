@@ -25,9 +25,8 @@ module.exports = function (config) {
 
     assert(typeof config === "object" && config !== null,
         "The config for a persistence adapter must be a nonnull object.");
-    // assert(typeof config["driver"] === "object" && config["driver"] !== null && typeof config["driver"]["session"] === "function",
-    //     "The config.driver must contain a neo4j driver instance.");
-    // TODO instead check for redis client
+    assert(typeof config["client"] === "object" && config["client"] !== null && typeof config["client"]["HGET"] === "function",
+        "The config.client must contain a redis client instance.");
 
     /** @type {Redis~Client} */
     const redis_client = config["client"];
