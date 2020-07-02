@@ -1,5 +1,4 @@
 const
-    assert = require("assert"),
     regex_semantic_id = /^https?:\/\/\S+$|^\w+:\S+$/,
     regex_nonempty_key = /\S/,
     array_primitive_types = Object.freeze(["boolean", "number", "string"]);
