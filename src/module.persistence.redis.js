@@ -4,14 +4,14 @@ const
     array_primitive_types = Object.freeze(["boolean", "number", "string"]);
 
 /**
- * 
  * @param {*} value 
- * @param {String} [errMsg=""] 
+ * @param {String} errMsg
  * @param {Class<Error>} [errType=Error] 
+ * @throws {Error<errType>} if the value is falsy
  */
-function assert(value, errMsg = "", errType = Error) {
+function assert(value, errMsg, errType = Error) {
     if (!value) {
-        const err = new errType(errMsg);
+        const err = new errType(`redis_adapter : ${errMsg}`);
         Error.captureStackTrace(err, assert);
         throw err;
     }
@@ -110,7 +110,7 @@ module.exports = function (config) {
     async function operation_redis_exist(subject) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_exist - invalid {SemanticID} subject <${subject}>`);
+            `operation_exist : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Number} */
         const existsRecord = await request_redis("EXISTS", subject);
@@ -127,7 +127,7 @@ module.exports = function (config) {
     async function operation_redis_create(subject) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_create - invalid {SemanticID} subject <${subject}>`);
+            `operation_create : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Number} */
         const createRecord = await request_redis("HSETNX", subject, "@id", JSON.stringify(subject));
@@ -145,7 +145,7 @@ module.exports = function (config) {
     async function operation_redis_read_subject(subject) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_read_subject - invalid {SemanticID} subject <${subject}>`);
+            `operation_read_subject : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Object<String>|null} */
         const readRecord = await request_redis("HGETALL", subject);
@@ -166,7 +166,7 @@ module.exports = function (config) {
     async function operation_redis_read_type(subject) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_read_type - invalid {SemanticID} subject <${subject}>`);
+            `operation_read_type : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {String|null} */
         const readRecord = await request_redis("HGET", subject, "@type");
@@ -187,14 +187,14 @@ module.exports = function (config) {
         if (key === "@type") return await operation_redis_read_type(subject);
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_read - invalid {SemanticID} subject <${subject}>`);
+            `operation_read : invalid {SemanticID} subject <${subject}>`);
 
         const isArray = Array.isArray(key);
         /** @type {Array<String>} */
         const keyArr = isArray ? key : [key];
 
         assert(keyArr.every(is_nonempty_key),
-            `redis_adapter - operation_read - {String|Array<String>} ${isArray ? "some " : ""}key <${key}> is empty`);
+            `operation_read : {String|Array<String>} ${isArray ? "some " : ""}key <${key}> is empty`);
 
         if (!(await operation_redis_exist(subject)))
             return null;
@@ -218,11 +218,11 @@ module.exports = function (config) {
     async function operation_redis_update_predicate(subject, predicate, object) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_update_predicate - invalid {SemanticID} subject <${subject}>`);
+            `operation_update_predicate : invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
-            `redis_adapter - operation_update_predicate - invalid {SemanticID} predicate <${predicate}>`);
+            `operation_update_predicate : invalid {SemanticID} predicate <${predicate}>`);
         assert(is_semantic_id(object),
-            `redis_adapter - operation_update_predicate - invalid {SemanticID} object <${object}>`);
+            `operation_update_predicate : invalid {SemanticID} object <${object}>`);
 
         if (!(await operation_redis_exist(subject)))
             return false;
@@ -252,13 +252,13 @@ module.exports = function (config) {
     async function operation_redis_update_type(subject, type) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_update_type - invalid {SemanticID} subject <${subject}>`);
+            `operation_update_type : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<SemanticID>} */
         const typeArr = Array.isArray(type) ? type : [type];
 
         assert(typeArr.every(is_semantic_id),
-            `redis_adapter - operation_update_type - invalid {SemanticID|Array<SemanticID>} type <${type}>`);
+            `operation_update_type : invalid {SemanticID|Array<SemanticID>} type <${type}>`);
         if (!typeArr.includes("rdfs:Resource"))
             typeArr.push("rdfs:Resource");
 
@@ -286,11 +286,11 @@ module.exports = function (config) {
         if (is_semantic_id(key) && is_semantic_id(value)) return await operation_redis_update_predicate(subject, key, value);
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_update - invalid {SemanticID} subject <${subject}>`);
+            `operation_update : invalid {SemanticID} subject <${subject}>`);
         assert(is_nonempty_key(key),
-            `redis_adapter - operation_update - {String|SemanticID} key <${key}> is empty`);
+            `operation_update : {String|SemanticID} key <${key}> is empty`);
         assert(is_primitive_value(value),
-            `redis_adapter - operation_update - invalid {PrimitiveValue|SemanticID} value <${value}>`);
+            `operation_update : invalid {PrimitiveValue|SemanticID} value <${value}>`);
 
         if (!(await operation_redis_exist(subject)))
             return false;
@@ -311,11 +311,11 @@ module.exports = function (config) {
     async function operation_redis_delete_predicate(subject, predicate, object) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_delete_predicate - invalid {SemanticID} subject <${subject}>`);
+            `operation_delete_predicate : invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
-            `redis_adapter - operation_delete_predicate - invalid {SemanticID} predicate <${predicate}>`);
+            `operation_delete_predicate : invalid {SemanticID} predicate <${predicate}>`);
         assert(is_semantic_id(object),
-            `redis_adapter - operation_delete_predicate - invalid {SemanticID} object <${object}>`);
+            `operation_delete_predicate : invalid {SemanticID} object <${object}>`);
 
         /** @type {Array<SemanticID>|null} */
         const prevObjects = await operation_redis_list(subject, predicate);
@@ -344,7 +344,7 @@ module.exports = function (config) {
         if (predicate || object) return await operation_redis_delete_predicate(subject, predicate, object);
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_delete - invalid {SemanticID} subject <${subject}>`);
+            `operation_delete : invalid {SemanticID} subject <${subject}>`);
 
         const deleteRecord = await request_redis("DEL", subject);
         return !!deleteRecord;
@@ -361,9 +361,9 @@ module.exports = function (config) {
     async function operation_redis_list(subject, predicate) {
 
         assert(is_semantic_id(subject),
-            `redis_adapter - operation_list - invalid {SemanticID} subject <${subject}>`);
+            `operation_list : invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
-            `redis_adapter - operation_list - invalid {SemanticID} predicate <${predicate}>`);
+            `operation_list : invalid {SemanticID} predicate <${predicate}>`);
 
         const listRecord = await request_redis("HGET", subject, predicate);
         return listRecord ? JSON.parse(listRecord) : null;
