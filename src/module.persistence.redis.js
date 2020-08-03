@@ -1,12 +1,13 @@
 const
-    regex_semantic_id = /^https?:\/\/\S+$|^\w+:\S+$/,
-    regex_nonempty_key = /\S/,
-    array_primitive_types = Object.freeze(["boolean", "number", "string"]);
+    regex_semantic_id     = /^https?:\/\/\S+$|^\w+:\S+$/,
+    regex_nonempty_key    = /\S/,
+    array_primitive_types = Object.freeze(["boolean", "number", "string"])
+;
 
 /**
- * @param {*} value 
+ * @param {*} value
  * @param {String} errMsg
- * @param {Class<Error>} [errType=Error] 
+ * @param {Class<Error>} [errType=Error]
  * @throws {Error<errType>} if the value is falsy
  */
 function assert(value, errMsg, errType = Error) {
@@ -19,7 +20,7 @@ function assert(value, errMsg, errType = Error) {
 
 /**
  * Returns true, if the value does include at least one nonspace character.
- * @param {String} value 
+ * @param {String} value
  * @returns {Boolean}
  */
 function is_nonempty_key(value) {
@@ -29,11 +30,11 @@ function is_nonempty_key(value) {
 /**
  * This is an IRI or a prefixed IRI.
  * @typedef {String|IRI} SemanticID
- * 
+ *
  * Returns true, if the value is a complete or prefixed IRI.
  * This function is important to distinct values from IRIs and
  * to make sure, subject, predicate and object have valid ids.
- * @param {SemanticID} value 
+ * @param {SemanticID} value
  * @returns {Boolean}
  */
 function is_semantic_id(value) {
@@ -42,11 +43,11 @@ function is_semantic_id(value) {
 
 /**
  * This are the only values neo4j can store on a node.
- * @typedef {null|Boolean|Number|String|Array<Boolean>|Array<Number>|Array<String>} PrimitiveValue 
- * 
+ * @typedef {null|Boolean|Number|String|Array<Boolean>|Array<Number>|Array<String>} PrimitiveValue
+ *
  * Returns true, if the value is primitive. This function
  * is important to make sure, a value can be stored in neo4j.
- * @param {PrimitiveValue} value 
+ * @param {PrimitiveValue} value
  * @returns {Boolean}
  */
 function is_primitive_value(value) {
@@ -59,18 +60,18 @@ function is_primitive_value(value) {
 
 /**
  * This is the general concept of a persistence adapter.
- * @typedef {Object} PersistenceAdapter 
+ * @typedef {Object} PersistenceAdapter
  * @property {Function} CREATE Create a resource.
  * @property {Function} READ Return a resource or some properties.
  * @property {Function} UPDATE Update a property or a reference.
  * @property {Function} DELETE Delete a resource or a reference.
  * @property {Function} LIST List targets of a reference on a resource.
- * 
+ *
  * This is a persistent adapter with build in methods for redis.
  * @typedef {PersistenceAdapter} RedisAdapter
- * 
+ *
  * This is the factory method to build a persistence adapter for redis.
- * @param {Object} config 
+ * @param {Object} config
  * @param {Redis~Client} config.client
  * @returns {RedisAdapter}
  */
@@ -88,8 +89,8 @@ module.exports = function (config) {
      * Uses the redis client to make a method call and returns
      * the result as promise instead of using callbacks.
      * @async
-     * @param {string} method 
-     * @param  {...*} args 
+     * @param {string} method
+     * @param  {...*} args
      * @returns {*}
      */
     async function request_redis(method, ...args) {
@@ -104,7 +105,7 @@ module.exports = function (config) {
     /**
      * TODO describe operation EXIST
      * @async
-     * @param {SemanticID} subject 
+     * @param {SemanticID} subject
      * @returns {Boolean}
      */
     async function operation_redis_exist(subject) {
@@ -121,7 +122,7 @@ module.exports = function (config) {
     /**
      * TODO describe operation CREATE
      * @async
-     * @param {SemanticID} subject 
+     * @param {SemanticID} subject
      * @returns {Boolean}
      */
     async function operation_redis_create(subject) {
@@ -139,7 +140,7 @@ module.exports = function (config) {
     /**
      * TODO describe operation READ_subject
      * @async
-     * @param {SemanticID} subject 
+     * @param {SemanticID} subject
      * @returns {Object|null}
      */
     async function operation_redis_read_subject(subject) {
@@ -160,7 +161,7 @@ module.exports = function (config) {
     /**
      * TODO describe operation READ_type
      * @async
-     * @param {SemanticID} subject 
+     * @param {SemanticID} subject
      * @returns {Array<SemanticID>}
      */
     async function operation_redis_read_type(subject) {
@@ -177,8 +178,8 @@ module.exports = function (config) {
     /**
      * TODO describe operation READ
      * @async
-     * @param {SemanticID} subject 
-     * @param {String|Array<String>} [key] 
+     * @param {SemanticID} subject
+     * @param {String|Array<String>} [key]
      * @returns {Object|null|PrimitiveValue|Array<PrimitiveValue>}
      */
     async function operation_redis_read(subject, key) {
@@ -191,7 +192,7 @@ module.exports = function (config) {
 
         const isArray = Array.isArray(key);
         /** @type {Array<String>} */
-        const keyArr = isArray ? key : [key];
+        const keyArr  = isArray ? key : [key];
 
         assert(keyArr.every(is_nonempty_key),
             `operation_read : {String|Array<String>} ${isArray ? "some " : ""}key <${key}> is empty`);
@@ -201,7 +202,7 @@ module.exports = function (config) {
 
         /** @type {Array<String|null>} */
         const readRecords = await request_redis("HMGET", subject, ...keyArr);
-        const valueArr = readRecords.map(val => val ? JSON.parse(val) : null);
+        const valueArr    = readRecords.map(val => val ? JSON.parse(val) : null);
 
         return isArray ? valueArr : valueArr[0];
 
@@ -210,9 +211,9 @@ module.exports = function (config) {
     /**
      * TODO describe operation UPDATE_predicate
      * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID} predicate 
-     * @param {SemanticID} object 
+     * @param {SemanticID} subject
+     * @param {SemanticID} predicate
+     * @param {SemanticID} object
      * @returns {Boolean}
      */
     async function operation_redis_update_predicate(subject, predicate, object) {
@@ -228,13 +229,13 @@ module.exports = function (config) {
             return false;
 
         /** @type {Array<SemanticID>|null} */
-        const prevObjects = await operation_redis_list(subject, predicate);
-
-        const nextObjects = prevObjects
-            ? prevObjects.includes(object)
-                ? null
-                : [...prevObjects, object]
-            : [object];
+        const
+            prevObjects = await operation_redis_list(subject, predicate),
+            nextObjects = prevObjects
+                ? prevObjects.includes(object)
+                    ? null
+                    : [...prevObjects, object]
+                : [object];
 
         if (nextObjects)
             await request_redis("HSET", subject, predicate, JSON.stringify(nextObjects));
@@ -245,8 +246,8 @@ module.exports = function (config) {
     /**
      * TODO describe operation UPDATE_type
      * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID|Array<SemanticID>} type 
+     * @param {SemanticID} subject
+     * @param {SemanticID|Array<SemanticID>} type
      * @returns {Boolean}
      */
     async function operation_redis_update_type(subject, type) {
@@ -275,9 +276,9 @@ module.exports = function (config) {
     /**
      * TODO describe operation UPDATE
      * @async
-     * @param {SemanticID} subject 
-     * @param {String|SemanticID} key 
-     * @param {PrimitiveValue|SemanticID} value 
+     * @param {SemanticID} subject
+     * @param {String|SemanticID} key
+     * @param {PrimitiveValue|SemanticID} value
      * @returns {Boolean}
      */
     async function operation_redis_update(subject, key, value) {
@@ -303,10 +304,10 @@ module.exports = function (config) {
     /**
      * TODO describe operation DELETE_predicate
      * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID} predicate 
-     * @param {SemanticID} object 
-     * @returns {Boolean} 
+     * @param {SemanticID} subject
+     * @param {SemanticID} predicate
+     * @param {SemanticID} object
+     * @returns {Boolean}
      */
     async function operation_redis_delete_predicate(subject, predicate, object) {
 
@@ -324,7 +325,8 @@ module.exports = function (config) {
         if (objIndex < 0) return false;
 
         /** @type {Array<SemanticID>} */
-        const nextObjects = prevObjects; nextObjects.splice(objIndex, 1);
+        const nextObjects = prevObjects;
+        nextObjects.splice(objIndex, 1);
         if (nextObjects.length > 0) await request_redis("HSET", subject, predicate, JSON.stringify(nextObjects));
         else await request_redis("HDEL", subject, predicate);
         return true;
@@ -334,9 +336,9 @@ module.exports = function (config) {
     /**
      * TODO describe operation DELETE
      * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID} [predicate] 
-     * @param {SemanticID} [object] 
+     * @param {SemanticID} subject
+     * @param {SemanticID} [predicate]
+     * @param {SemanticID} [object]
      * @returns {Boolean}
      */
     async function operation_redis_delete(subject, predicate, object) {
@@ -354,8 +356,8 @@ module.exports = function (config) {
     /**
      * TODO describe operation LIST
      * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID} predicate 
+     * @param {SemanticID} subject
+     * @param {SemanticID} predicate
      * @returns {Array<SemanticID>|null}
      */
     async function operation_redis_list(subject, predicate) {
@@ -368,15 +370,15 @@ module.exports = function (config) {
         const listRecord = await request_redis("HGET", subject, predicate);
         return listRecord ? JSON.parse(listRecord) : null;
 
-    } // operation_redis_list
+    } // operation_redis_list ()
 
     /**
      * Creates a promise that times out after a given number of seconds.
      * If the original promise finishes before that, the error or result
      * will be resolved or rejected accordingly and the timeout will be canceled.
-     * @param {Promise} origPromise 
-     * @param {Number} timeoutDelay 
-     * @param {String} [errMsg="This promise timed out after waiting ${timeoutDelay}s for the original promise."] 
+     * @param {Promise} origPromise
+     * @param {Number} timeoutDelay
+     * @param {String} [errMsg="This promise timed out after waiting ${timeoutDelay}s for the original promise."]
      * @returns {Promise}
      */
     function create_timeout_promise(origPromise, timeoutDelay, errMsg) {
@@ -387,19 +389,19 @@ module.exports = function (config) {
 
         let timeoutErr = new Error(typeof errMsg === "string" ? errMsg :
             `This promise timed out after waiting ${timeoutDelay}s for the original promise.`);
-        Object.defineProperty(timeoutErr, "name", { value: "TimeoutError" });
+        Object.defineProperty(timeoutErr, "name", {value: "TimeoutError"});
         Error.captureStackTrace(timeoutErr, create_timeout_promise);
 
         return new Promise((resolve, reject) => {
-            let pending = true;
-
-            let timeoutID = setTimeout(() => {
-                if (pending) {
-                    pending = false;
-                    clearTimeout(timeoutID);
-                    reject(timeoutErr);
-                }
-            }, 1e3 * timeoutDelay);
+            let
+                pending   = true,
+                timeoutID = setTimeout(() => {
+                    if (pending) {
+                        pending = false;
+                        clearTimeout(timeoutID);
+                        reject(timeoutErr);
+                    }
+                }, 1e3 * timeoutDelay);
 
             origPromise.then((result) => {
                 if (pending) {
@@ -433,7 +435,7 @@ module.exports = function (config) {
             : create_timeout_promise(operation_redis_delete(subject, predicate, object), timeout),
 
         "LIST": (subject, predicate, timeout) => !timeout ? operation_redis_list(subject, predicate)
-            : create_timeout_promise(operation_redis_list(subject, predicate), timeout),
+            : create_timeout_promise(operation_redis_list(subject, predicate), timeout)
 
     }); // redis_adapter
 
