@@ -83,7 +83,10 @@ module.exports = function (config) {
         "The config.client must contain a redis client instance.");
 
     /** @type {Redis~Client} */
-    const redis_client = config["client"];
+    const
+        redis_client = config["client"],
+        Helmut       = config['Helmut']
+    ;
 
     /**
      * Uses the redis client to make a method call and returns
@@ -419,25 +422,109 @@ module.exports = function (config) {
         });
     } // create_timeout_promise
 
+    //region non-interface methods
+    function module_persistence_redis_set(node, hash_id = true, encrypt_value = true, timeout = /** default_timeout */ 5000) {
+        let array_request = Array.isArray(node);
+        node              = ((Array.isArray(node)) ? node : [node]);
+        return new Promise((resolve, reject) => {
+
+            let semaphore;
+
+            try {
+                semaphore = setTimeout(() => {
+                    clearTimeout(semaphore);
+                    reject(`agent_persistence_set : timeout <${timeout}> reached.`);
+                }, timeout);
+
+                try {
+                    Promise.all(node.map((n) => {
+                        //return () => {
+                        return new Promise((_resolve, _reject) => {
+                            if (!n['@id'])
+                                _reject(new Error(`node misses '@id'`));
+                            let hash = ((hash_id) ? Helmut.hash({'value': n['@id']}) : n['@id']);
+                            redis_client.set(hash, ((encrypt_value) ? Helmut.encrypt(JSON.stringify(n)) : JSON.stringify(n)), (err, result) => {
+                                if (err)
+                                    reject(err);
+                                _resolve(n['@id']);
+                            });
+                        }); // return
+                    })).then((result) => {
+                        if (array_request)
+                            resolve(result);
+                        resolve(result[0]);
+                    }).catch(reject); // Promise.all()()
+                } catch (jex) {
+                    reject(jex);
+                } // try
+            } catch (jex) {
+                if (semaphore)
+                    clearTimeout(semaphore);
+                reject(jex);
+            } // try
+        }); // return new P
+    } // function module_persistence_redis_set()
+
+    function module_persistence_redis_get(id, hash_id = true, decrypt_value = true) {
+        let array_request = Array.isArray(id);
+        id                = ((array_request) ? id : [id]);
+        return new Promise((resolve, reject) => {
+            try {
+                Promise.all(id.map((_id) => {
+                    return new Promise((_resolve, _reject) => {
+                        redis_client.get(((hash_id) ? Helmut.hash({'value': _id}) : _id), function (err, reply) {
+                            if (err)
+                                reject(err)
+                            if (decrypt_value) {
+                                Helmut.decrypt(reply).then((value) => {
+                                    _resolve(JSON.parse(value));
+                                }).catch(reject);
+                            } else {
+                                _resolve(JSON.parse(reply));
+                            } // if ()
+                        });
+                    }); // return
+                })).then((result) => {
+                    if (array_request)
+                        resolve(result);
+                    resolve(result[0]);
+                }).catch(reject); // Promise.all()
+            } catch (jex) {
+                reject(jex);
+            } // try
+        }); // return P
+    } // function module_persistence_redis_get()
+    //endregion non-interface methods
+
     /** @type {RedisAdapter} */
-    const redis_adapter = Object.freeze({
+        //const redis_adapter = Object.freeze({
+        //    "CREATE": (subject, timeout) => !timeout ? operation_redis_create(subject) : create_timeout_promise(operation_redis_create(subject), timeout),
+        //    "READ": (subject, key, timeout) => !timeout ? operation_redis_read(subject, key) : create_timeout_promise(operation_redis_read(subject, key), timeout),
+        //    "UPDATE": (subject, key, value, timeout) => !timeout ? operation_redis_update(subject, key, value) : create_timeout_promise(operation_redis_update(subject, key, value), timeout),
+        //    "DELETE": (subject, predicate, object, timeout) => !timeout ? operation_redis_delete(subject, predicate, object) : create_timeout_promise(operation_redis_delete(subject, predicate, object), timeout),
+        //    "LIST": (subject, predicate, timeout) => !timeout ? operation_redis_list(subject, predicate) : create_timeout_promise(operation_redis_list(subject, predicate), timeout)
+        //    , // REM : non-interface mthodes
+        //    'set':  {value: module_persistence_redis_set},
+        //    'get':  {value: module_persistence_redis_get}
+        //}); // redis_adapter
 
-        "CREATE": (subject, timeout) => !timeout ? operation_redis_create(subject)
-            : create_timeout_promise(operation_redis_create(subject), timeout),
+    let redis_adapter = {};
 
-        "READ": (subject, key, timeout) => !timeout ? operation_redis_read(subject, key)
-            : create_timeout_promise(operation_redis_read(subject, key), timeout),
-
-        "UPDATE": (subject, key, value, timeout) => !timeout ? operation_redis_update(subject, key, value)
-            : create_timeout_promise(operation_redis_update(subject, key, value), timeout),
-
-        "DELETE": (subject, predicate, object, timeout) => !timeout ? operation_redis_delete(subject, predicate, object)
-            : create_timeout_promise(operation_redis_delete(subject, predicate, object), timeout),
-
-        "LIST": (subject, predicate, timeout) => !timeout ? operation_redis_list(subject, predicate)
-            : create_timeout_promise(operation_redis_list(subject, predicate), timeout)
-
-    }); // redis_adapter
+    Object.defineProperties(redis_adapter, {
+        '@id':    {value: "redis"},
+        '@type':  {value: ["fua:PersistantAdapterRedis", "fua:PersistantAdapter", "rdf:Resource"]},
+        'mode':   {value: "redis"}
+        ,
+        // REM: interface methods are shoen with capital letters
+        'CREATE': {value: (subject, timeout) => !timeout ? operation_redis_create(subject) : create_timeout_promise(operation_redis_create(subject), timeout)},
+        'UPDATE': {value: (subject, key, value, timeout) => !timeout ? operation_redis_update(subject, key, value) : create_timeout_promise(operation_redis_update(subject, key, value), timeout)},
+        'READ':   {value: (subject, key, timeout) => !timeout ? operation_redis_read(subject, key) : create_timeout_promise(operation_redis_read(subject, key), timeout)},
+        'DELETE': {value: (subject, predicate, object, timeout) => !timeout ? operation_redis_delete(subject, predicate, object) : create_timeout_promise(operation_redis_delete(subject, predicate, object), timeout)},
+        'LIST':   {value: (subject, predicate, timeout) => !timeout ? operation_redis_list(subject, predicate) : create_timeout_promise(operation_redis_list(subject, predicate), timeout)}
+        ,
+        'set':    {value: module_persistence_redis_set},
+        'get':    {value: module_persistence_redis_get}
+    }); // Object.defineProperties()
 
     return redis_adapter;
 
