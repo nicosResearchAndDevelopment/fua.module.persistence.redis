@@ -1,5 +1,5 @@
 const
-	module_name = 'module.rdf.RedisStore',
+	module_name = 'module.persistence.redis : RedisStore',
 	{ EventEmitter } = require('events'),
 	// redis = require('redis'),
 	{ promisify } = require('util'),

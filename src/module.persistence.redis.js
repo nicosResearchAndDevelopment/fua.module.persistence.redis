@@ -5,7 +5,7 @@ const
 
 /**
  * @param {NamedNode} graph
- * @para {RedisClient} db
+ * @para {RedisClient} client
  * @returns {RedisStore}
  */
 exports.store = function(graph, client) {
