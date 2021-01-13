@@ -1,1 +1,1 @@
-# fua.module.persistence.redis
+# module.persistence.redis

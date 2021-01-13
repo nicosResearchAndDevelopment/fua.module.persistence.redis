@@ -4,25 +4,25 @@
   "description": "",
   "main": "src/module.persistence.redis.js",
   "dependencies": {
-    "redis": "3.x"
+    "redis": "^3.0.2"
+  },
+  "devDependencies": {
+    "mocha": "^8.2.1",
+    "expect": "^26.6.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
-  "jest": {
-    "rootDir": "test",
-    "verbose": false,
-    "testRegex": "(\\.|/)test\\.js$"
+  "mocha": {
+    "bail": false,
+    "recursive": false,
+    "spec": "test/*.test.js"
   },
   "repository": {
     "type": "git",
     "url": "ssh://git@git02.int.nsc.ag:10022/Research/fua/lib/module.persistence.redis.git"
   },
-  "keywords": [
-    "redis",
-    "persistence",
-    "adapter"
-  ],
+  "keywords": [],
   "author": "spetrac@nicos-ag.com",
   "license": ""
 }
