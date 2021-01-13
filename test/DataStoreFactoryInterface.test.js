@@ -9,7 +9,7 @@ const
 		url: 'redis://localhost:6379/'
 	};
 
-describe('module.persistence.redis : StoreFactoryInterface', function() {
+describe('module.persistence.redis : DataStoreFactoryInterface', function() {
 
 	// https://hub.docker.com/_/redis
 	// docker run
