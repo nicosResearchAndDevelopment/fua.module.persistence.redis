@@ -1,5 +1,7 @@
 # module.persistence.redis
 
+- [Persistence](../module.persistence)
+
 ## Interface
 
 ```ts
