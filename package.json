@@ -1,10 +1,12 @@
 {
-  "name": "fua.module.persistence.redis",
+  "name": "@nrd/fua.module.persistence.redis",
   "version": "1.0.0",
   "description": "",
   "main": "src/module.persistence.redis.js",
   "dependencies": {
-    "redis": "^3.0.2"
+    "redis": "^3.0.2",
+    "@nrd/fua.core.util": "1.0.0",
+    "@nrd/fua.module.persistence": "1.0.0"
   },
   "devDependencies": {
     "mocha": "^8.2.1",
@@ -24,5 +26,5 @@
   },
   "keywords": [],
   "author": "spetrac@nicos-ag.com",
-  "license": ""
+  "license": "UNLICENSED"
 }

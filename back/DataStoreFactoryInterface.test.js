@@ -3,8 +3,7 @@ const
 	expect = require('expect'),
 	redis = require('redis'),
 	dataFactory = require('../../module.persistence/src/module.persistence.js'),
-	datasetFactory = require('../../module.persistence.inmemory/src/module.persistence.inmemory.js'),
-	storeFactory = require('../src/module.persistence.redis.js'),
+	storeFactory = require('./module.persistence.redis.js'),
 	config = {
 		url: 'redis://localhost:6379/'
 	};
