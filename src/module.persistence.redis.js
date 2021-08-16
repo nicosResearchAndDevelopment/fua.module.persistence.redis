@@ -247,6 +247,11 @@ class RedisStore extends DataStore {
         }
     } // RedisStore#deleteMatches
 
+    // TODO: has(quads: Quad|Array<Quad>): Promise<boolean>
+    // FIXME: on deletion of quads, the terms get left behind, even when no quad refers to them
+    // IDEA: tidyUpDatabase(): Promise<number>
+    // TODO: validate consistence of operations and check for race conditions
+
 } // RedisStore
 
 module.exports = RedisStore;
