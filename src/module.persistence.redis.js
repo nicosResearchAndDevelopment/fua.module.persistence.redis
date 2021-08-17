@@ -26,6 +26,9 @@ class RedisStore extends DataStore {
         assert(!password || util.isString(password), 'MongoDBStore#constructor : invalid password');
         const redisClient = redis.createClient({url, user, password, db});
         this.#client      = promisifyRedisClient(redisClient);
+        this.close        = () => new Promise(resolve => redisClient.quit(resolve));
+        util.hideProp(this, 'close');
+        util.lockProp(this, 'close');
     } // RedisStore#constructor
 
     async size() {
@@ -202,6 +205,9 @@ class RedisStore extends DataStore {
 
         await super.deleteMatches(subject, predicate, object, graph);
 
+        // const dataset = await this.match(subject, predicate, object, graph);
+        // return await this.delete(Array.from(dataset));
+
         const
             subjKey   = subject ? termIdToKey(this.factory.termToId(subject)) : '?subject',
             predKey   = predicate ? termIdToKey(this.factory.termToId(predicate)) : '?predicate',
@@ -212,29 +218,49 @@ class RedisStore extends DataStore {
             let quadsDeleted = 0;
 
             const
-                quadKeys = (subject && predicate && object)
+                quadKeys  = (subject && predicate && object)
                     ? [searchKey]
-                    : await this.#client.SMEMBERS(searchKey);
+                    : await this.#client.SMEMBERS(searchKey),
+                termCache = new Map();
 
             await Promise.all(quadKeys.map(async (quadKey) => {
                 try {
-                    // TODO delete node
-                    // const
-                    //     quadData                      = await this.#client.HGETALL(quadKey),
-                    //     [subjNode, predNode, objNode] = await Promise.all(
-                    //         [quadData.subject, quadData.predicate, quadData.object].map(async (key) => {
-                    //             if (termCache.has(key))
-                    //                 return termCache.get(key);
-                    //             const node = await this.#client.HGETALL(key);
-                    //             termCache.set(key, node);
-                    //             return node;
-                    //         })
-                    //     ),
-                    //     quad                          = this.factory.fromQuad({
-                    //         subject:   subjNode,
-                    //         predicate: predNode,
-                    //         object:    objNode
-                    //     });
+                    const quadData = await this.#client.HGETALL(quadKey);
+                    assert(quadKey === `${quadData.subject} ${quadData.predicate} ${quadData.object}`,
+                        'RedisStore#deleteMatches : quadData is not aligned with quadKey (' + quadKey + ')');
+
+                    const delCount = await this.#client.DEL(quadKey);
+                    if (delCount > 0) {
+                        await Promise.all([
+                            this.#client.SREM(`?subject ?predicate ?object`, quadKey),
+                            this.#client.SREM(`${quadData.subject} ?predicate ?object`, quadKey),
+                            this.#client.SREM(`?subject ${quadData.predicate} ?object`, quadKey),
+                            this.#client.SREM(`?subject ?predicate ${quadData.object}`, quadKey),
+                            this.#client.SREM(`${quadData.subject} ${quadData.predicate} ?object`, quadKey),
+                            this.#client.SREM(`${quadData.subject} ?predicate ${quadData.object}`, quadKey),
+                            this.#client.SREM(`?subject ${quadData.predicate} ${quadData.object}`, quadKey)
+                        ]);
+
+                        quadsDeleted++;
+
+                        const
+                            [subjNode, predNode, objNode] = await Promise.all(
+                                [quadData.subject, quadData.predicate, quadData.object].map(async (key) => {
+                                    if (termCache.has(key))
+                                        return termCache.get(key);
+                                    const node = await this.#client.HGETALL(key);
+                                    termCache.set(key, node);
+                                    return node;
+                                })
+                            ),
+                            quad                          = this.factory.fromQuad({
+                                subject:   subjNode,
+                                predicate: predNode,
+                                object:    objNode
+                            });
+
+                        this.emit('deleted', quad);
+                    }
                 } catch (err) {
                     this.emit('error', err);
                 }
@@ -247,7 +273,30 @@ class RedisStore extends DataStore {
         }
     } // RedisStore#deleteMatches
 
-    // TODO: has(quads: Quad|Array<Quad>): Promise<boolean>
+    async has(quads) {
+        const
+            quadArr = await super.has(quads);
+
+        try {
+            const existsArr = await Promise.all(quadArr.map(async (quad) => {
+                const
+                    {subject, predicate, object} = quad,
+                    subjKey                      = termIdToKey(this.factory.termToId(subject)),
+                    predKey                      = termIdToKey(this.factory.termToId(predicate)),
+                    objKey                       = termIdToKey(this.factory.termToId(object)),
+                    quadKey                      = `${subjKey} ${predKey} ${objKey}`,
+                    existCount                   = await this.#client.EXISTS(quadKey);
+
+                return existCount > 0;
+            }));
+
+            return existsArr.every(exists => exists);
+        } catch (err) {
+            this.emit('error', err);
+            throw err;
+        }
+    } // RedisStore#has
+
     // FIXME: on deletion of quads, the terms get left behind, even when no quad refers to them
     // IDEA: tidyUpDatabase(): Promise<number>
     // TODO: validate consistence of operations and check for race conditions

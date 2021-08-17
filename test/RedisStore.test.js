@@ -1,7 +1,7 @@
 const
     {describe, test, before, after} = require('mocha'),
     expect                          = require('expect'),
-    RedisStore                    = require('../src/module.persistence.redis.js'),
+    RedisStore                      = require('../src/module.persistence.redis.js'),
     options                         = {
         url: 'redis://localhost:6379/'
     };
@@ -10,7 +10,7 @@ describe('module.persistence.redis', function () {
 
     let store, quad_1, quad_2;
     before('construct a RedisStore and two quads', async function () {
-        store = new RedisStore(options);
+        store  = new RedisStore(options);
         quad_1 = store.factory.quad(
             store.factory.namedNode('http://example.com/subject'),
             store.factory.namedNode('http://example.com/predicate'),
@@ -61,6 +61,10 @@ describe('module.persistence.redis', function () {
     test('should have a size of 0, after it deleted the second quad', async function () {
         await store.delete(quad_2);
         expect(await store.size()).toBe(0);
+    });
+
+    after('exit the application', async function () {
+        await store.close();
     });
 
 }); // describe
