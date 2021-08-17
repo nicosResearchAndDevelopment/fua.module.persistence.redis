@@ -300,6 +300,7 @@ class RedisStore extends DataStore {
     // FIXME: on deletion of quads, the terms get left behind, even when no quad refers to them
     // IDEA: tidyUpDatabase(): Promise<number>
     // TODO: validate consistence of operations and check for race conditions
+    // IDEA: maybe use multis (https://www.npmjs.com/package/redis#user-content-clientmulticommands) for command chains
 
 } // RedisStore
 
