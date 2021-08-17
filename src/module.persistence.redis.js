@@ -21,9 +21,9 @@ class RedisStore extends DataStore {
         super(options, factory);
         const {url, user, password, db} = options;
         assert(util.isString(url), 'RedisStore#constructor : invalid url');
-        assert(!db || util.isString(db), 'MongoDBStore#constructor : invalid user');
-        assert(!user || util.isString(user), 'MongoDBStore#constructor : invalid user');
-        assert(!password || util.isString(password), 'MongoDBStore#constructor : invalid password');
+        assert(!db || util.isString(db), 'RedisStore#constructor : invalid user');
+        assert(!user || util.isString(user), 'RedisStore#constructor : invalid user');
+        assert(!password || util.isString(password), 'RedisStore#constructor : invalid password');
         const redisClient = redis.createClient({url, user, password, db});
         this.#client      = promisifyRedisClient(redisClient);
         this.close        = () => new Promise(resolve => redisClient.quit(resolve));
