@@ -1,16 +1,19 @@
 {
-  "name": "@nrd/fua.module.persistence.redis",
+  "name": "@fua/module.persistence.redis",
   "version": "1.0.0",
   "description": "",
   "main": "src/module.persistence.redis.js",
+  "files": [
+    "src/*"
+  ],
   "dependencies": {
     "redis": "^3.0.2",
-    "@nrd/fua.core.util": "1.0.0",
-    "@nrd/fua.module.persistence": "1.0.0"
+    "@fua/core.util": "^1.0.0",
+    "@fua/module.persistence": "^1.0.0"
   },
   "devDependencies": {
-    "mocha": "^8.2.1",
-    "expect": "^26.6.2"
+    "expect": "26.x",
+    "mocha": "10.x"
   },
   "scripts": {
     "test": "mocha"
@@ -22,9 +25,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "ssh://git@git02.int.nsc.ag:10022/research/fua/module/persistence.redis.git"
+    "url": "ssh://git@github.com:nicosResearchAndDevelopment/fua.module.persistence.redis.git"
   },
   "keywords": [],
-  "author": "spetrac@nicos-ag.com",
-  "license": "UNLICENSED"
+  "author": "Simon Petrac <pfoerdie@gmail.com>",
+  "license": "MIT"
 }

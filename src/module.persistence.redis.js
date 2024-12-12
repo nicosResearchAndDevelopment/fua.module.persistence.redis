@@ -1,8 +1,8 @@
 const
-    util                 = require('@nrd/fua.core.util'),
+    util                 = require('@fua/core.util'),
     assert               = new util.Assert('module.persistence.redis'),
     redis                = require('redis'),
-    {DataStore}          = require('@nrd/fua.module.persistence'),
+    {DataStore}          = require('@fua/module.persistence'),
     {promisify}          = require('util'),
     isRedisCommand       = new util.StringValidator(/^[A-Z ]+$/),
     promisifyRedisClient = (redisClient) => Object.fromEntries(Object.entries(redisClient.__proto__)
